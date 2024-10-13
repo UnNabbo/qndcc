@@ -3,5 +3,6 @@ out/
 *.exe
 *.obj
 *.pdb
+tests/
 
 project.4coder
