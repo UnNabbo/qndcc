@@ -2,7 +2,7 @@
 
 set quiet=1
 
-set project=Compiler
+set project=cc
 set output_dir=out
 
 if %quiet%==0 (
@@ -33,13 +33,13 @@ if %quiet%==0 echo cl %compilation_string%
 
 cl %compilation_string%
 
+   goto run_exit
 if %errorlevel% == 0 (
-    pushd "%output_dir%"
+   echo:
+	"out/%Project%.exe" tests\test_main.c -Fo asm_out\test_main\
 	echo:
-	%Project%.exe
-	echo:
-	popd
 )
+    :run_exit
 
 if %quiet%==0 (
 	echo Finishing compilation at %TIME%

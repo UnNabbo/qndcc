@@ -28,27 +28,40 @@ typedef unsigned char      b8;
 typedef unsigned char      b16;
 typedef unsigned int       b32;
 typedef unsigned long long b64;
- 
+
 #include "utils.c"
 #include "array.c"
 #include "file.c"
 
 #include "token.c"
-
 #include "parser.c"
+#include "code_gen.c"
 
-static s32 FileTested = 0;
+#include "compile_options.c"
+#include "ast_preatty_print.c"
 
-void Compile(char * Code){
-    printf("\nCase %i:\n\n%s\n\n", ++FileTested, Code); 
+void Compile(char * Path, compile_options Options){
+    char *Input = FileOpenAndRead(Path);
+    printf("\n%s\n\n", Input);
+
+    char * OutputPath = Options.AsmPath;
+    if(!OutputPath){
+       
+    }
+    
+    char Format[1024];
+    ZeroMemory(Format);
+    
+    char * Name = PathExtractName(Path);
+    s32 NameLength = strlen(Name);
     
     token* Tokens = ArrayAlloc(token);
-  
     u32 TokenSize = 0;
     u32 TokenOffset = 0;
-    for(int i = 0; Code[i]; i++){
+    
+    for(int i = 0; Input[i]; i++){
         TokenSize++;
-        token Token = Tokenize(Code + TokenOffset, TokenSize);
+        token Token = Tokenize(Input + TokenOffset, TokenSize);
         if(Token.Enum != TOKEN_TYPE_INVALID){
             TokenOffset += TokenSize; 
             TokenSize = 0;
@@ -58,34 +71,43 @@ void Compile(char * Code){
     }
 
     For(Token, Tokens){
-        //TokenPrint(Token);
+        TokenPrint(Token);
+    }
+    
+    ast Ast = AstGenerate(Tokens, 0);
+    if(Ast.State == AST_STATE_FINE){
+        sprintf(Format, "%s%s.s", OutputPath, Name);
+        AssemblyGenerate(&Ast, Format);
+    
+        sprintf(Format, "gcc %s%s.s -o %s%s.exe", OutputPath, Name, OutputPath, Name);
+        ExecuteCommand(Format);
     }
 
-    ast Ast = Parse(Tokens, 0);
+
+    #if 1
+   
+    printf("\n");
+    AstPrint(&Ast);
+    #endif
+
+
     
+    MemFree(Input);
+    MemFree(Name);
     ArrayFree(Tokens);
+
 }
 
-void LoadAndReadFile(const char * Path){
-    static char NameBuff[128];
-    ZeroMemory(NameBuff);
-    sprintf(NameBuff, "../tests/stage_1/invalid/%s", Path);
-    
-    file File = FileOpen(NameBuff, "rb");
-
-    char *Text = malloc(File.Size + 1);
-    fread(Text, File.Size, 1, File.Handle);
-
-    Text[File.Size] = 0;
-
-    Compile(Text);
-    
-    free(Text);
-    FileClose(File);
-}
-
-int main() 
+int main(s32 Argc, char * Argv[]) 
 {
-    FileGLOB("../tests/stage_1/invalid/*.c", LoadAndReadFile);
+    compile_options Options;
+    ZeroMemory(Options);
+
+    char** Files = FilesAndOptionsFind(&Options, Argv, Argc);
+    for(int i = 0; i < ArraySize(Files); i++){
+        Compile(Files[i], Options);
+    }
+    ArrayFree(Files);
+    
 	return 0;
 }

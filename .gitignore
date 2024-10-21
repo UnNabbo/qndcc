@@ -3,6 +3,6 @@ out/
 *.exe
 *.obj
 *.pdb
-tests/
+asm_out/
 
 project.4coder

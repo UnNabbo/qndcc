@@ -8,7 +8,7 @@ typedef struct{
 } keyword; 
 
 typedef struct{
-    u64 Number;
+    s32 Number;
 } number_literal; 
 
 typedef struct{
@@ -29,31 +29,58 @@ typedef enum{
     TOKEN_TYPE_CLOSE_BRACE,
     TOKEN_TYPE_OPEN_PARENTHESIS,
     TOKEN_TYPE_CLOSE_PARENTHESIS,
+    TOKEN_TYPE_NEGATION,
+    TOKEN_TYPE_BIT_COMPLEMENT,
+    TOKEN_TYPE_LOG_NEGATION,
+    TOKEN_TYPE_,
 
     TOKEN_TYPE_NUMBER_LITERAL,
     TOKEN_TYPE_KEYWORD,
     TOKEN_TYPE_IDENTIFIER,
 
-    TOKEN_TYPE_,
-    
     TOKEN_TYPE_COUNT,
 } token_type;
 
-s8 ValidTokenLiteral[] = {
+#define CaseEnumToString(Enum) case Enum: return #Enum
+
+char * TokenTypeToString(u32 Enum){
+    switch(Enum){
+        CaseEnumToString(TOKEN_TYPE_INVALID);
+        CaseEnumToString(TOKEN_TYPE_SEMICOLON);
+        CaseEnumToString(TOKEN_TYPE_OPEN_BRACE);
+        CaseEnumToString(TOKEN_TYPE_CLOSE_BRACE);
+        CaseEnumToString(TOKEN_TYPE_OPEN_PARENTHESIS);
+        CaseEnumToString(TOKEN_TYPE_CLOSE_PARENTHESIS);
+        CaseEnumToString(TOKEN_TYPE_NEGATION);
+        CaseEnumToString(TOKEN_TYPE_BIT_COMPLEMENT);
+        CaseEnumToString(TOKEN_TYPE_LOG_NEGATION);
+        CaseEnumToString(TOKEN_TYPE_NUMBER_LITERAL);
+        CaseEnumToString(TOKEN_TYPE_KEYWORD);
+        CaseEnumToString(TOKEN_TYPE_IDENTIFIER);
+        CaseEnumToString(TOKEN_TYPE_);
+        default: return 0;
+    }
+}
+
+s8 ValidSymbols[] = {
     ';',
     '{',
     '}',
     '(',
     ')',
+    '-',
+    '~',
+    '!',
 };
 
 s8 * ValidKeywords[] = {
-    "int",
+    "int", //Maybe make a separate growing array for types?
+    
     "return",
 };
 
 token Tokenize(s8* Literal, u64 Lenght){
-    const s32 LiteralCount = sizeof(ValidTokenLiteral) / sizeof(s8);
+    const s32 LiteralCount = sizeof(ValidSymbols) / sizeof(s8);
     const s32 KeyWordCount = sizeof(ValidKeywords) / sizeof(s8*);
 
     token Token;
@@ -77,11 +104,10 @@ token Tokenize(s8* Literal, u64 Lenght){
             StrippedLiteral[Index++] = Literal[i];
         }
     }
-    printf("%s\n", StrippedLiteral);
 
     if(StrippedLenght == 1){
         for(int i = 0; i < LiteralCount; i++){
-            if(StrippedLiteral[0] == ValidTokenLiteral[i]){
+            if(StrippedLiteral[0] == ValidSymbols[i]){
                 Token.Enum = i + 1;
                 return Token;
             }
@@ -90,7 +116,7 @@ token Tokenize(s8* Literal, u64 Lenght){
 
     b32 HasEnded = !IsAlphabetical(Literal[Lenght]) && !IsNumber(Literal[Lenght]);
     for(int i = 0; i < LiteralCount; i++){
-        HasEnded &= StrippedLiteral[StrippedLenght] != ValidTokenLiteral[i];
+        HasEnded &= StrippedLiteral[StrippedLenght] != ValidSymbols[i];
     }
     
     if(HasEnded){
@@ -125,37 +151,16 @@ token Tokenize(s8* Literal, u64 Lenght){
 
 
 static void TokenPrint(token Token){
+    printf("%s", TokenTypeToString(Token.Enum));
     switch(Token.Enum){
-        case TOKEN_TYPE_SEMICOLON:{
-            printf("TOKEN_TYPE_SEMICOLON");
-        }break;
-
-        case TOKEN_TYPE_OPEN_BRACE:{
-            printf("TOKEN_TYPE_OPEN_BRACE");
-        }break;
-            
-        case TOKEN_TYPE_CLOSE_BRACE:{
-            printf("TOKEN_TYPE_CLOSE_BRACE");
-        }break;
-
-        case TOKEN_TYPE_OPEN_PARENTHESIS:{
-            printf("TOKEN_TYPE_OPEN_PARENTHESIS");
-        }break;
-        case TOKEN_TYPE_CLOSE_PARENTHESIS:{
-            printf("TOKEN_TYPE_CLOSE_PARENTHESIS");
-        }break;
-
         case TOKEN_TYPE_NUMBER_LITERAL:{
-            printf("TOKEN_TYPE_NUMBER_LITERAL: %llu", Token.NumberLiteral.Number);
+            printf(": %i", Token.NumberLiteral.Number);
         }break;
         case TOKEN_TYPE_KEYWORD:{
-            printf("TOKEN_TYPE_KEYWORD: %s", ValidKeywords[Token.Keyword.Id]);
+            printf(": %s", ValidKeywords[Token.Keyword.Id]);
         }break;
         case TOKEN_TYPE_IDENTIFIER:{
-            printf("TOKEN_TYPE_IDENTIFIER: ");
-            for(int j = 0; j < Token.Identifier.Size; j++){
-                putchar(Token.Identifier.Literal[j]);
-            }
+            printf(": %s", Token.Identifier.Literal);
         }break;
     }
     printf("\n");
