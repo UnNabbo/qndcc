@@ -4,6 +4,10 @@ void AssemblyGenerateExpression(file File, ast_node * Node);
 void AssemblyGenerateFactor(file File,  factor Factor);
 
 void AssemblyGenerateBinaryOperator(file File, binary_operator Operator){
+    AssemblyGenerateExpression(File, Operator.Left);
+    FileWriteFormatted(File, "\tpush eax\n");
+    AssemblyGenerateExpression(File, Operator.Right);
+    FileWriteFormatted(File, "\tpop ecx\n");
     switch(Operator.Enum){
         case BINARY_OPERATOR_TYPE_ADD:{
             FileWriteFormatted(File, "\tadd eax, ecx\n");
@@ -67,27 +71,14 @@ void AssemblyGenerateFactor(file File,  factor Factor){
     
 }
 
-void AssemblyGenerateTerm(file File,  term Term){
-    AssemblyGenerateFactor(File, Term.Factor);
-    binary_op_chain * Op = Term.Factors;
-    while(Op){
-        FileWriteFormatted(File, "\tpush eax\n");
-        AssemblyGenerateFactor(File, *Op->Operator.Factor);
-        FileWriteFormatted(File, "\tpop ecx\n");
-        AssemblyGenerateBinaryOperator(File, Op->Operator);
-        Op = Op->Next;
-    }
-}
-
 void AssemblyGenerateExpression(file File, ast_node * Node){
-    AssemblyGenerateTerm(File, Node->Expression.Term);
-    binary_op_chain * Op = Node->Expression.Terms;
-    while(Op){
-        FileWriteFormatted(File, "\tpush eax\n");
-        AssemblyGenerateTerm(File, *Op->Operator.Term);
-        FileWriteFormatted(File, "\tpop ecx\n");
-        AssemblyGenerateBinaryOperator(File, Op->Operator);
-        Op = Op->Next;
+    switch(Node->Expression.Enum){
+        case EXPRESSION_TYPE_FACTOR:{
+            AssemblyGenerateFactor(File, Node->Expression.Factor);
+        }break;
+        case EXPRESSION_TYPE_OPERATOR:{
+            AssemblyGenerateBinaryOperator(File, Node->Expression.Operator);
+        }break;
     }
 }
 

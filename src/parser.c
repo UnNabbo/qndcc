@@ -32,6 +32,17 @@ typedef enum{
     FACTOR_TYPE_COUNT,
 } factor_type; 
 
+
+typedef enum{
+    EXPRESSION_TYPE_INVALID,
+
+    EXPRESSION_TYPE_FACTOR,
+    EXPRESSION_TYPE_OPERATOR,
+
+    EXPRESSION_TYPE_COUNT,
+} expression_type; 
+
+
 typedef enum{
     UNARY_OPERATOR_TYPE_INVALID,
     
@@ -60,16 +71,12 @@ struct ast_node;
 
 typedef struct factor factor;
 struct factor;
-
-typedef struct term term;
 struct term;
 
 typedef struct{
     u32 Enum;
-    union{
-        term * Term;
-        factor * Factor;
-    };
+    ast_node * Left;
+    ast_node * Right;
 } binary_operator;
 
 typedef struct{
@@ -86,23 +93,12 @@ struct factor{
     };
 };
 
-typedef struct binary_op_chain binary_op_chain;
-struct binary_op_chain{
-    binary_operator Operator;
-    
-    binary_op_chain * Next;
-};
-
-struct term{
-    factor Factor;
-    
-    binary_op_chain * Factors;
-} ;
-
 typedef struct{
-    term Term;
-    
-    binary_op_chain * Terms;
+    u32 Enum;
+    union{
+        factor Factor;
+        binary_operator Operator;
+    };
 } expression;
   
 typedef struct{
@@ -135,7 +131,6 @@ typedef enum{
     AST_STATE_COUNT,
 } ast_state;
 
-
 typedef struct{
     ast_node ** Functions;
     //void * Memory;
@@ -144,6 +139,38 @@ typedef struct{
     s32 Offset;
     token * Tokens;
 } ast;
+
+typedef struct{
+    u32 Enum;
+    s32 Precedence;
+} binary_op_precedence;
+
+binary_op_precedence Precedences[] = {
+    {TOKEN_TYPE_MUL, 50},
+    {TOKEN_TYPE_DIV, 50},
+    {TOKEN_TYPE_ADD, 45},
+    {TOKEN_TYPE_MIN, 45},
+    
+    {TOKEN_TYPE_GREATER, 35},
+    {TOKEN_TYPE_GREATER_EQU, 35},
+    {TOKEN_TYPE_LESS, 35},
+    {TOKEN_TYPE_LESS_EQU, 35},
+    {TOKEN_TYPE_LOG_EQU, 30},
+    {TOKEN_TYPE_LOG_NEQ, 30},
+    
+    {TOKEN_TYPE_LOG_AND, 10},
+    {TOKEN_TYPE_LOG_OR, 10},
+};
+
+s32 BinaryOperatorGetPrecedence(u32 Enum){
+    s32 PrecendesCount = sizeof(Precedences) / sizeof(Precedences[0]);
+    for(int i = 0; i < PrecendesCount; i++){
+        if(Precedences[i].Enum == Enum){
+            return Precedences[i].Precedence;
+        }
+    }
+    return -1;
+}
 
 void * AstMemAllocate(ast* Ast, u64 Size){
     return MemAlloc(Size);
@@ -191,7 +218,8 @@ inline token ParseExpectNextToken(u32 Enum, ast * Ast){
 }
 
 
-ast_node * ParseExp(ast* Ast);
+ast_node * ParseExp(ast* Ast, s32 MinPrecendence);
+
 
 binary_operator ParseBinaryOperator(ast * Ast, token Token){
     binary_operator Operator;
@@ -255,7 +283,7 @@ factor ParseFactor(ast * Ast){
     token Token = ParseGetNextToken(Ast);
     switch(Token.Enum){
         case TOKEN_TYPE_OPEN_PARENTHESIS:{
-            ast_node * Expr = ParseExp(Ast);
+            ast_node * Expr = ParseExp(Ast, 0);
             if(Expr){
                 Factor.Enum = FACTOR_TYPE_EXPRESSION;
                 Factor.Expression = Expr;
@@ -287,93 +315,40 @@ factor ParseFactor(ast * Ast){
     
 }
 
-term ParseTerm(ast * Ast){
-    term Term;
-    ZeroMemory(Term);
-
-    Term.Factor = ParseFactor(Ast);
-
-    binary_op_chain * Prev = 0;
-    while(1){
-        token Token = ParsePeekNextToken(Ast);
-        if(Token.Enum != TOKEN_TYPE_MUL && Token.Enum != TOKEN_TYPE_DIV) break;
-        binary_operator Operator = ParseBinaryOperator(Ast, Token);
-        ParseNextToken(Ast);
-        
-        if(Operator.Enum == BINARY_OPERATOR_TYPE_INVALID){
-            //logging;
-            break;
-        }
-        
-        factor Factor = ParseFactor(Ast);
-        if(Factor.Enum == FACTOR_TYPE_INVALID){
-            //logging;
-            break;
-        }
-               
-        binary_op_chain * Chain = AstMemAllocate(Ast, sizeof(binary_op_chain));
-        Chain->Operator = Operator;
-        
-        if(!Term.Factors){
-            Term.Factors = Chain;
-        }
-        
-        if(Prev){
-            Prev->Next = Chain;
-        }
-            Chain->Operator.Factor = AstMemAllocate(Ast, sizeof(term));
-            *Chain->Operator.Factor = Factor;
-        Prev = Chain;
-    }
-
-    
-    return Term;
-}
-
-ast_node * ParseExp(ast* Ast){
+ast_node * ParseExp(ast* Ast, s32 MinPrecendence){
+    ast_node* Node = 0;
     expression Expression;
     ZeroMemory(Expression);
 
-    Expression.Term = ParseTerm(Ast);
-    binary_op_chain * Prev = 0;
-    while(1){
-        token Token = ParsePeekNextToken(Ast);
-        if(Token.Enum != TOKEN_TYPE_ADD && Token.Enum != TOKEN_TYPE_MIN) break;
-        binary_operator Operator = ParseBinaryOperator(Ast, Token);
+    Expression.Enum = EXPRESSION_TYPE_FACTOR;
+    Expression.Factor = ParseFactor(Ast);
+    
+    token Token = ParsePeekNextToken(Ast);
+    s32 Precedence = BinaryOperatorGetPrecedence(Token.Enum);
+    while(TokenIsBinaryOperator(Token.Enum) && Precedence >= MinPrecendence)
+    {
+        binary_operator BiOp = ParseBinaryOperator(Ast, Token);
         ParseNextToken(Ast);
+        BiOp.Right = ParseExp(Ast, Precedence + 1);
         
-        if(Operator.Enum == BINARY_OPERATOR_TYPE_INVALID){
-            //logging;
-            break;
-        }
+        Node = AstMemAllocate(Ast, sizeof(ast_node));
+        Node->Enum = NODE_TYPE_EXPRESSION;
+        Node->Expression = Expression;
+        BiOp.Left = Node;
+    
+        Expression.Enum = EXPRESSION_TYPE_OPERATOR;
+        Expression.Operator = BiOp;
         
-        term Term = ParseTerm(Ast);
-        if(Term.Factor.Enum == FACTOR_TYPE_INVALID){
-            printf("Term is invalid");
-            break;
-        }
-               
-        binary_op_chain * Chain = AstMemAllocate(Ast, sizeof(binary_op_chain));
-        Chain->Operator = Operator;
-        
-        if(!Expression.Terms){
-            Expression.Terms = Chain;
-        }
-        
-        if(Prev){
-            Prev->Next = Chain;
-        }
-        
-        Chain->Operator.Term = AstMemAllocate(Ast, sizeof(term));
-        *Chain->Operator.Term = Term;
-        Prev = Chain;
+        Token = ParsePeekNextToken(Ast);
+        Precedence = BinaryOperatorGetPrecedence(Token.Enum);
     }
-
+    
+    
     if(Ast->State == AST_STATE_ERROR){
         return 0;
     }
     
-    ast_node* Node = AstMemAllocate(Ast, sizeof(ast_node));
+    Node = AstMemAllocate(Ast, sizeof(ast_node));
     Node->Enum = NODE_TYPE_EXPRESSION;
     Node->Expression = Expression;
     
@@ -392,7 +367,7 @@ ast_node *ParseStatement(ast* Ast){
             
         case 1:{
             Statement.Enum = STATEMENT_TYPE_RETURN;
-            Statement.Return.Expression = ParseExp(Ast);
+            Statement.Return.Expression = ParseExp(Ast, 0);
         }break;
             
         default: return 0;
