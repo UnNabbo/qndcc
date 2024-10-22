@@ -26,20 +26,20 @@ exit /B %errorlevel%
 :ValidCase
 if not exist "%out_path%\%1\" mkdir %out_path%\%1\
 echo %1 test:
+echo: 
 out\cc.exe tests\stage_%stage_number%\valid\%1.c -Fo %out_path%\%1\
-echo output: %errorlevel%
 echo: 
 %out_path%\%1\%1.exe
 echo: 
 echo exit_code: %errorlevel%
-echo: 
+echo:
 exit /B 0
 
 
 :InvalidCase
 if not exist "%out_path%\%1\" mkdir %out_path%\%1\
 echo %1 test:
-out\cc.exe tests\stage_%stage_number%\invalid\%1.c -Fo %out_path%\%1\
 echo: 
+out\cc.exe tests\stage_%stage_number%\invalid\%1.c -Fo %out_path%\%1\
 exit /B 0
 

@@ -42,7 +42,7 @@ typedef unsigned long long b64;
 
 void Compile(char * Path, compile_options Options){
     char *Input = FileOpenAndRead(Path);
-    printf("\n%s\n\n", Input);
+    printf("%s\n", Input);
 
     char * OutputPath = Options.AsmPath;
     if(!OutputPath){
@@ -70,10 +70,6 @@ void Compile(char * Path, compile_options Options){
         }
     }
 
-    For(Token, Tokens){
-        TokenPrint(Token);
-    }
-    
     ast Ast = AstGenerate(Tokens, 0);
     if(Ast.State == AST_STATE_FINE){
         sprintf(Format, "%s%s.s", OutputPath, Name);
@@ -85,9 +81,14 @@ void Compile(char * Path, compile_options Options){
 
 
     #if 1
-   
     printf("\n");
-    AstPrint(&Ast);
+    For(Token, Tokens){
+        TokenPrint(Token);
+    printf("\n");
+    }
+    
+    //printf("\n");
+    //AstPrint(&Ast);
     #endif
 
 

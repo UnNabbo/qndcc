@@ -1,35 +1,93 @@
 
+
 void AssemblyGenerateExpression(file File, ast_node * Node);
+void AssemblyGenerateFactor(file File,  factor Factor);
 
-void AssemblyGenerateOperator(file File, operator Operator){
+void AssemblyGenerateBinaryOperator(file File, binary_operator Operator){
     switch(Operator.Enum){
-        case OPERATOR_TYPE_UNARY:{
-            unary_operator UOps = Operator.UnaryOperator;
-            AssemblyGenerateExpression(File, UOps.Expression);
-            
-            switch(UOps.Enum){
-                case UNARY_OPERATOR_TYPE_NEGATION:
-                case UNARY_OPERATOR_TYPE_BIT_COMPLEMENT:{
-                    FileWriteFormatted(File, "\tneg eax\n");
-                }break;
+        case BINARY_OPERATOR_TYPE_ADD:{
+            FileWriteFormatted(File, "\tadd eax, ecx\n");
+        }break;
 
-                case UNARY_OPERATOR_TYPE_LOG_NEGATION:{
-                    FileWriteFormatted(File, "\tneg eax\n");
-                }break;
-            }
+        case BINARY_OPERATOR_TYPE_MUL:{
+            FileWriteFormatted(File, "\timul eax, ecx\n");
+        }break;
+        
+        case BINARY_OPERATOR_TYPE_MIN:{
+            FileWriteFormatted(File, "\tsub ecx, eax\n");
+            FileWriteFormatted(File, "\tmov eax, ecx\n");
+        }break;
+
+        case BINARY_OPERATOR_TYPE_DIV:{
+            FileWriteFormatted(File, "\txchg ecx, eax\n");
+            FileWriteFormatted(File, "\tcdq\n");
+            FileWriteFormatted(File, "\tidiv ecx\n");
+        }break;
+        
+        
+    }
+}
+
+
+void AssemblyGenerateUnaryOperator(file File, unary_operator Operator){
+    AssemblyGenerateFactor(File, *Operator.Factor);
+            
+    switch(Operator.Enum){
+        case UNARY_OPERATOR_TYPE_NEGATION:{
+            FileWriteFormatted(File, "\tneg eax\n");
+        }break;
+                
+        case UNARY_OPERATOR_TYPE_BIT_COMPLEMENT:{
+            FileWriteFormatted(File, "\tnot eax\n");
+        }break;
+
+        case UNARY_OPERATOR_TYPE_LOG_NEGATION:{
+            FileWriteFormatted(File, "\tcmp eax, 0\n");
+            FileWriteFormatted(File, "\tmov eax, 0\n");
+            FileWriteFormatted(File, "\tsete al\n");
         }break;
     }
 }
 
 
+void AssemblyGenerateFactor(file File,  factor Factor){
+    switch(Factor.Enum){
+        case FACTOR_TYPE_EXPRESSION:{
+            AssemblyGenerateExpression(File, Factor.Expression);
+        }break;
+        
+        case FACTOR_TYPE_NUMBER:{
+            FileWriteFormatted(File, "\tmov eax, %i\n", Factor.Number);
+        }break;
+
+        case FACTOR_TYPE_UNARY_OP:{
+            AssemblyGenerateUnaryOperator(File, Factor.UnOp);
+        }break;
+    }
+    
+}
+
+void AssemblyGenerateTerm(file File,  term Term){
+    AssemblyGenerateFactor(File, Term.Factor);
+    binary_op_chain * Op = Term.Factors;
+    while(Op){
+        FileWriteFormatted(File, "\tpush eax\n");
+        AssemblyGenerateFactor(File, *Op->Operator.Factor);
+        FileWriteFormatted(File, "\tpop ecx\n");
+        AssemblyGenerateBinaryOperator(File, Op->Operator);
+        Op = Op->Next;
+    }
+}
+
 void AssemblyGenerateExpression(file File, ast_node * Node){
-    switch(Node->Expression.Enum){
-        case EXPRESSION_TYPE_NUMBER_LITERAL:{
-            FileWriteFormatted(File, "\tmov eax, %i\n", Node->Expression.Number);
-        }break;
-        case EXPRESSION_TYPE_OPERATION:{
-            AssemblyGenerateOperator(File, Node->Expression.Operator);
-        }break;
+    AssemblyGenerateTerm(File, Node->Expression.Term);
+    binary_op_chain * Op = Node->Expression.Terms;
+    while(Op){
+        FileWriteFormatted(File, "\tpush eax\n");
+        AssemblyGenerateTerm(File, *Op->Operator.Term);
+        FileWriteFormatted(File, "\tpop ecx\n");
+        AssemblyGenerateBinaryOperator(File, Op->Operator);
+        Op = Op->Next;
     }
 }
 

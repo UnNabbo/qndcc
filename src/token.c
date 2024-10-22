@@ -4,7 +4,7 @@ typedef struct{
 } identifier; 
 
 typedef struct{
-    u64 Id;
+    u32 Id;
 } keyword; 
 
 typedef struct{
@@ -25,14 +25,22 @@ typedef enum{
     TOKEN_TYPE_INVALID,
 
     TOKEN_TYPE_SEMICOLON,
+    
     TOKEN_TYPE_OPEN_BRACE,
     TOKEN_TYPE_CLOSE_BRACE,
+    
     TOKEN_TYPE_OPEN_PARENTHESIS,
     TOKEN_TYPE_CLOSE_PARENTHESIS,
-    TOKEN_TYPE_NEGATION,
+    
+    TOKEN_TYPE_MIN,
+    TOKEN_TYPE_ADD,
+    TOKEN_TYPE_MUL,
+    TOKEN_TYPE_DIV,
+    
     TOKEN_TYPE_BIT_COMPLEMENT,
+    
     TOKEN_TYPE_LOG_NEGATION,
-    TOKEN_TYPE_,
+    //TOKEN_TYPE_,
 
     TOKEN_TYPE_NUMBER_LITERAL,
     TOKEN_TYPE_KEYWORD,
@@ -46,31 +54,54 @@ typedef enum{
 char * TokenTypeToString(u32 Enum){
     switch(Enum){
         CaseEnumToString(TOKEN_TYPE_INVALID);
+        
         CaseEnumToString(TOKEN_TYPE_SEMICOLON);
+        
         CaseEnumToString(TOKEN_TYPE_OPEN_BRACE);
         CaseEnumToString(TOKEN_TYPE_CLOSE_BRACE);
+        
         CaseEnumToString(TOKEN_TYPE_OPEN_PARENTHESIS);
         CaseEnumToString(TOKEN_TYPE_CLOSE_PARENTHESIS);
-        CaseEnumToString(TOKEN_TYPE_NEGATION);
+        
+        CaseEnumToString(TOKEN_TYPE_MIN);
+        CaseEnumToString(TOKEN_TYPE_ADD);
+        CaseEnumToString(TOKEN_TYPE_MUL);
+        CaseEnumToString(TOKEN_TYPE_DIV);
+        
         CaseEnumToString(TOKEN_TYPE_BIT_COMPLEMENT);
+        
         CaseEnumToString(TOKEN_TYPE_LOG_NEGATION);
+        
         CaseEnumToString(TOKEN_TYPE_NUMBER_LITERAL);
         CaseEnumToString(TOKEN_TYPE_KEYWORD);
         CaseEnumToString(TOKEN_TYPE_IDENTIFIER);
-        CaseEnumToString(TOKEN_TYPE_);
+        //CaseEnumToString(TOKEN_TYPE_);
         default: return 0;
     }
 }
 
-s8 ValidSymbols[] = {
-    ';',
-    '{',
-    '}',
-    '(',
-    ')',
-    '-',
-    '~',
-    '!',
+typedef struct{
+    char * Literal;
+    u32 Enum;
+} valid_symbol;
+
+valid_symbol ValidSymbols[] = {
+    { ";", TOKEN_TYPE_SEMICOLON },
+    
+    { "{", TOKEN_TYPE_OPEN_BRACE },
+    { "}", TOKEN_TYPE_CLOSE_BRACE },
+    
+    { "(", TOKEN_TYPE_OPEN_PARENTHESIS },
+    { ")", TOKEN_TYPE_CLOSE_PARENTHESIS },
+    
+    { "-", TOKEN_TYPE_MIN },
+    { "+", TOKEN_TYPE_ADD },
+    { "*", TOKEN_TYPE_MUL },
+    { "/", TOKEN_TYPE_DIV },
+    
+    { "~", TOKEN_TYPE_BIT_COMPLEMENT },
+    
+    { "!", TOKEN_TYPE_LOG_NEGATION },
 };
 
 s8 * ValidKeywords[] = {
@@ -80,7 +111,7 @@ s8 * ValidKeywords[] = {
 };
 
 token Tokenize(s8* Literal, u64 Lenght){
-    const s32 LiteralCount = sizeof(ValidSymbols) / sizeof(s8);
+    const s32 LiteralCount = sizeof(ValidSymbols) / sizeof(valid_symbol);
     const s32 KeyWordCount = sizeof(ValidKeywords) / sizeof(s8*);
 
     token Token;
@@ -104,19 +135,18 @@ token Tokenize(s8* Literal, u64 Lenght){
             StrippedLiteral[Index++] = Literal[i];
         }
     }
-
-    if(StrippedLenght == 1){
-        for(int i = 0; i < LiteralCount; i++){
-            if(StrippedLiteral[0] == ValidSymbols[i]){
-                Token.Enum = i + 1;
-                return Token;
-            }
+    
+    for(int i = 0; i < LiteralCount; i++){
+        if(StringCompare(StrippedLiteral, ValidSymbols[i].Literal)){
+            Token.Enum = ValidSymbols[i].Enum;
+            return Token;
         }
     }
 
     b32 HasEnded = !IsAlphabetical(Literal[Lenght]) && !IsNumber(Literal[Lenght]);
     for(int i = 0; i < LiteralCount; i++){
-        HasEnded &= StrippedLiteral[StrippedLenght] != ValidSymbols[i];
+        HasEnded &= StrippedLiteral[StrippedLenght] != ValidSymbols[i].Literal[0];
+        if(HasEnded) break;
     }
     
     if(HasEnded){
@@ -163,5 +193,4 @@ static void TokenPrint(token Token){
             printf(": %s", Token.Identifier.Literal);
         }break;
     }
-    printf("\n");
 }
