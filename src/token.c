@@ -179,15 +179,15 @@ token Tokenize(s8* Literal, u64 Lenght){
         HasEnded &= !StringCompare(&StrippedLiteral[StrippedLenght], ValidSymbols[i].Literal);
         if(HasEnded) break;
     }
+
+    for(int i = 0; i < LiteralCount; i++){
+        if(StringCompare(StrippedLiteral, ValidSymbols[i].Literal)){
+            Token.Enum = ValidSymbols[i].Enum;
+            return Token;
+        }
+    }
     
     if(HasEnded){
-        for(int i = 0; i < LiteralCount; i++){
-            if(StringCompare(StrippedLiteral, ValidSymbols[i].Literal)){
-                Token.Enum = ValidSymbols[i].Enum;
-                return Token;
-            }
-        }
-        
         if(StrippedLenght > 1){
             for(int i = 0; i < KeyWordCount; i++){
                 if(StringCompare(StrippedLiteral, ValidKeywords[i])){
