@@ -29,6 +29,9 @@ typedef unsigned char      b16;
 typedef unsigned int       b32;
 typedef unsigned long long b64;
 
+#define true 1
+#define false 0
+
 #include "utils.c"
 #include "array.c"
 #include "file.c"
@@ -41,9 +44,6 @@ typedef unsigned long long b64;
 #include "ast_preatty_print.c"
 
 void Compile(char * Path, compile_options Options){
-    char *Input = FileOpenAndRead(Path);
-    printf("%s\n", Input);
-
     char * OutputPath = Options.AsmPath;
     if(!OutputPath){
        
@@ -54,21 +54,7 @@ void Compile(char * Path, compile_options Options){
     
     char * Name = PathExtractName(Path);
     s32 NameLength = strlen(Name);
-    
-    token* Tokens = ArrayAlloc(token);
-    u32 TokenSize = 0;
-    u32 TokenOffset = 0;
-    
-    for(int i = 0; Input[i]; i++){
-        TokenSize++;
-        token Token = Tokenize(Input + TokenOffset, TokenSize);
-        if(Token.Enum != TOKEN_TYPE_INVALID){
-            TokenOffset += TokenSize; 
-            TokenSize = 0;
-            
-            ArrayAppend(Tokens, Token);
-        }
-    }
+    token* Tokens = TokenizeFile(Path);
 
     ast Ast = AstGenerate(Tokens, 0);
     if(Ast.State == AST_STATE_FINE){
@@ -79,24 +65,19 @@ void Compile(char * Path, compile_options Options){
         ExecuteCommand(Format);
     }
 
-
-    #if 1
+#if 1
     printf("\n");
     For(Token, Tokens){
         TokenPrint(Token);
-    printf("\n");
+        printf("\n");
     }
     
     //printf("\n");
     //AstPrint(&Ast);
-    #endif
+#endif
 
-
-    
-    MemFree(Input);
     MemFree(Name);
     ArrayFree(Tokens);
-
 }
 
 int main(s32 Argc, char * Argv[]) 

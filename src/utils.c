@@ -2,6 +2,20 @@ b32 StringCompare(const char * String1, const char* String2){
     return(!strcmp(String1, String2));
 }
 
+b32 StringCompareN(const char * String1, const char* String2, s32 Len){
+    if(Len == 1){
+        return String1[0] == String2[0];
+    }
+    if(strlen(String1) < Len) return false;
+    if(strlen(String2) < Len) return false;
+    
+    b32 Result = true;
+    for(int i = 0; i < Len; i++){
+        Result &= String1[i] == String2[i];
+    }
+    return Result;
+}
+
 
 b32 IsNumber(char Char){
     return ( Char >= '0' && Char <= '9');

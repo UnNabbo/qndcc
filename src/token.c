@@ -129,16 +129,17 @@ valid_symbol ValidSymbols[] = {
     { ">=", TOKEN_TYPE_GREATER_EQU },
     { "<=", TOKEN_TYPE_LESS_EQU },
     
+
     { "~", TOKEN_TYPE_BIT_COMPLEMENT },
     { "&", TOKEN_TYPE_BIT_AND },
     { "|", TOKEN_TYPE_BIT_OR },
-    
     
     { "!", TOKEN_TYPE_LOG_NEGATION },
     { "&&", TOKEN_TYPE_LOG_AND },
     { "||", TOKEN_TYPE_LOG_OR },
     { "!=", TOKEN_TYPE_LOG_NEQ },
     { "==", TOKEN_TYPE_LOG_EQU },
+    
 };
 
 s8 * ValidKeywords[] = {
@@ -147,7 +148,129 @@ s8 * ValidKeywords[] = {
     "return",
 };
 
-token Tokenize(s8* Literal, u64 Lenght){
+
+
+const s32 LiteralCount = sizeof(ValidSymbols) / sizeof(valid_symbol);
+const s32 KeyWordCount = sizeof(ValidKeywords) / sizeof(s8*);
+
+static void TokenPrint(token Token){
+    printf("%s", TokenTypeToString(Token.Enum));
+    switch(Token.Enum){
+        case TOKEN_TYPE_NUMBER_LITERAL:{
+            printf(": %i", Token.NumberLiteral.Number);
+        }break;
+        case TOKEN_TYPE_KEYWORD:{
+            printf(": %s", ValidKeywords[Token.Keyword.Id]);
+        }break;
+        case TOKEN_TYPE_IDENTIFIER:{
+            printf(": %s", Token.Identifier.Literal);
+        }break;
+    }
+}
+
+token TokenizerExtractSymbolToken(char ** Data){
+    token Token;
+    ZeroMemory(Token);
+
+    s32 CandidateSize = 0;
+    for(int i = 0; i < LiteralCount; i++){
+        s32 Len = strlen(ValidSymbols[i].Literal);
+        if(StringCompareN(*Data, ValidSymbols[i].Literal, Len) && Len > CandidateSize){
+            Token.Enum = ValidSymbols[i].Enum;
+            CandidateSize = Len;
+        }
+    }
+    
+    (*Data) += CandidateSize;
+    return Token;
+}
+
+token TokenizerExtractToken(char * Literal, s32 Lenght){
+    token Token;
+    ZeroMemory(Token);
+
+    for(int i = 0; i < KeyWordCount; i++){
+        if(StringCompare(Literal, ValidKeywords[i])){
+            Token.Enum = TOKEN_TYPE_KEYWORD;
+            Token.Keyword.Id = i;
+            return Token;
+        }
+    }
+        
+    Token.Enum = TOKEN_TYPE_NUMBER_LITERAL;
+    for(int i = 0; i < Lenght; i++){
+        if(!IsNumber(Literal[i])){
+            Token.Enum = TOKEN_TYPE_IDENTIFIER;
+            Token.Identifier.Literal = Literal;
+            Token.Identifier.Size = Lenght;
+            return Token;
+        }
+    }
+    
+    Token.NumberLiteral.Number = atoi(Literal);
+    return Token;
+}
+
+void TokenizerAdvanceTillValidChar(char ** Data){
+    while(true){
+        if((*Data)[0] == ' ' ||
+           (*Data)[0] == '\n' ||
+           (*Data)[0] == '\r' ||
+           (*Data)[0] == 9)
+        {
+            (*Data)++;
+
+            continue;
+        }
+        break;
+    }
+}
+
+token * TokenizeFile(char * Path){
+    char * Data = FileOpenAndRead(Path);
+    printf("%s\n", Data);
+
+    token * Tokens = ArrayAlloc(token);
+    
+    token Token;
+    while(Data[0]){
+        TokenizerAdvanceTillValidChar(&Data);
+        ZeroMemory(Token);
+        
+        Token = TokenizerExtractSymbolToken(&Data);
+        if(Token.Enum != TOKEN_TYPE_INVALID){
+            ArrayAppend(Tokens, Token);
+            continue;
+        }
+        
+        s32 Size = 0;
+        while(true){
+            if(Data[Size] != ' ' &&
+               Data[Size] != '\n' &&
+               Data[Size] != '\r' &&
+               Data[Size] != 9 &&
+               (IsNumber(Data[Size]) || IsAlphabetical(Data[Size])))
+            {
+                Size++;
+                continue;
+            }
+            break;
+        }
+        
+        if(Size){
+            char * Literal = MemAlloc(Size + 1);
+            MemCopy(Literal, Data, Size);
+            Data += Size;
+            Token = TokenizerExtractToken(Literal, Size);
+        }
+ 
+        ArrayAppend(Tokens, Token);
+    }
+    return Tokens;
+}
+
+#if 0
+token Tokenize(s8* , u64 Lenght){
     const s32 LiteralCount = sizeof(ValidSymbols) / sizeof(valid_symbol);
     const s32 KeyWordCount = sizeof(ValidKeywords) / sizeof(s8*);
 
@@ -216,6 +339,7 @@ token Tokenize(s8* Literal, u64 Lenght){
     
     return Token;
 }
+#endif
 
 static b32 TokenIsBinaryOperator(u32 Enum){
     switch(Enum){
@@ -235,19 +359,4 @@ static b32 TokenIsBinaryOperator(u32 Enum){
         case TOKEN_TYPE_LOG_OR: return 1;
     }
     return 0;
-}
-
-static void TokenPrint(token Token){
-    printf("%s", TokenTypeToString(Token.Enum));
-    switch(Token.Enum){
-        case TOKEN_TYPE_NUMBER_LITERAL:{
-            printf(": %i", Token.NumberLiteral.Number);
-        }break;
-        case TOKEN_TYPE_KEYWORD:{
-            printf(": %s", ValidKeywords[Token.Keyword.Id]);
-        }break;
-        case TOKEN_TYPE_IDENTIFIER:{
-            printf(": %s", Token.Identifier.Literal);
-        }break;
-    }
 }

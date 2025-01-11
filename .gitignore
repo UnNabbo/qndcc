@@ -4,5 +4,6 @@ out/
 *.obj
 *.pdb
 asm_out/
-
+#*
+.#*
 project.4coder
